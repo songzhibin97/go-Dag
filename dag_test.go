@@ -47,75 +47,74 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(b)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(c)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(d)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(e)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(f)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(g)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	err = actuator.AddTask(a, b, c, d, e, f, g, h)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
+	actuator = NewActuator()
 	actuator = NewActuator(SetWorkerNum(1))
 	err = actuator.AddTask(h)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
-	actuator.Run()
 }
