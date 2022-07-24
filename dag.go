@@ -138,6 +138,7 @@ func (a *Actuator) Run() {
 				fmt.Printf("clear: %#v \r\n", clear)
 			}
 
+			// TODO 任务推进有点问题
 			time.Sleep(time.Second)
 		}
 	}()
