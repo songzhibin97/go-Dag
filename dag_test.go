@@ -3,18 +3,17 @@ package go_Dag
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"time"
 )
 
 func demoNode(t *testing.T) (*Task, *Task, *Task, *Task, *Task, *Task, *Task, *Task) {
 	/*
-		  a      b
-		/ | \ 	/ |
-	  c	  d   e   |
-		  |    \ /|
-		  f --> g |
-		         \|
-		          h
+			  a      b
+			/ | \ 	/ |
+		  c	  d   e   |
+			  |    \ /|
+			  f --> g |
+			         \|
+			          h
 	*/
 
 	a, _ := NewTask("a", mock{}, nil)
@@ -48,45 +47,69 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(b)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(c)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(d)
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(e)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(f)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
 
-	actuator = NewActuator()
+	a, b, c, d, e, f, g, h = demoNode(t)
+
 	err = actuator.AddTask(g)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+
+	a, b, c, d, e, f, g, h = demoNode(t)
+
+	err = actuator.AddTask(a, b, c, d, e, f, g, h)
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(actuator.taskMap))
+	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+
+	a, b, c, d, e, f, g, h = demoNode(t)
 
 	actuator = NewActuator(SetWorkerNum(1))
 	err = actuator.AddTask(h)
@@ -95,5 +118,4 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
 	actuator.Run()
-	time.Sleep(time.Second)
 }

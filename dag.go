@@ -7,11 +7,14 @@ import (
 	"github.com/songzhibin97/gkit/goroutine"
 	"github.com/songzhibin97/gkit/options"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 var ErrCircle = errors.New("circle graph")
 
 type Actuator struct {
+	Config
 	ReadyTask   chan *Task
 	SuccessTask chan *Task
 	FailureTask chan *Task
@@ -23,14 +26,29 @@ type Actuator struct {
 
 	g goroutine.GGroup
 
-	Config
+	wg   sync.WaitGroup
+	done int32
+}
+
+func (a *Actuator) Close() {
+	if !atomic.CompareAndSwapInt32(&a.done, 0, 1) {
+		return
+	}
+	close(a.ReadyTask)
+	close(a.SuccessTask)
+	close(a.FailureTask)
+	_ = a.g.Shutdown()
 }
 
 func (a *Actuator) run() {
+	a.wg.Add(3)
 	go func() {
 		for t := range a.ReadyTask {
 			func(t *Task) {
+				a.wg.Add(1)
 				a.g.AddTask(func() {
+					defer a.wg.Done()
+
 					t.setStatue(StateStarted)
 					t.Call()
 					switch t.GetState() {
@@ -46,6 +64,7 @@ func (a *Actuator) run() {
 				})
 			}(t)
 		}
+		defer a.wg.Done()
 	}()
 
 	go func() {
@@ -61,6 +80,7 @@ func (a *Actuator) run() {
 				continue
 			}
 		}
+		defer a.wg.Done()
 	}()
 
 	go func() {
@@ -70,26 +90,58 @@ func (a *Actuator) run() {
 				a.ReadyTask <- task
 			}
 		}
+		defer a.wg.Done()
 	}()
 
 }
 
-// TODO 并发控制(任务的最小执行)
-
-func (a *Actuator) Run() []*Task {
-	a.taskLock.Lock()
-	defer a.taskLock.Unlock()
-	var clear []*Task
-	for _, t := range a.taskMap {
-		switch t.GetState() {
-		case StateReceived:
-			a.ReadyTask <- t
-		case StateSuccess:
-			clear = append(clear, t)
-			delete(a.taskMap, t.GID())
-		}
+func (a *Actuator) reset() {
+	if !atomic.CompareAndSwapInt32(&a.done, 1, 0) {
+		return
 	}
-	return clear
+
+	a.ReadyTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.SuccessTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.FailureTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.g = goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(a.Config.WorkerNum)))
+}
+
+func (a *Actuator) Run() {
+
+	a.reset()
+
+	go a.run()
+	a.wg.Add(1)
+	go func() {
+		defer a.wg.Done()
+		for {
+			a.taskLock.Lock()
+			if len(a.taskMap) == 0 {
+				a.Close()
+				a.taskLock.Unlock()
+				break
+			}
+
+			var clear []*Task
+			for _, t := range a.taskMap {
+				switch t.GetState() {
+				case StateReceived:
+					a.ReadyTask <- t
+				case StateSuccess:
+					clear = append(clear, t)
+					delete(a.taskMap, t.GID())
+				}
+			}
+			a.taskLock.Unlock()
+
+			if len(clear) != 0 {
+				fmt.Printf("clear: %#v \r\n", clear)
+			}
+
+			time.Sleep(time.Second)
+		}
+	}()
+	a.wg.Wait()
 }
 
 type Config struct {
@@ -192,7 +244,6 @@ func NewActuator(options ...options.Option) *Actuator {
 		Config:      *c,
 		g:           goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(c.WorkerNum))),
 	}
-	go a.run()
 
 	return a
 }
