@@ -7,6 +7,16 @@ import (
 )
 
 func demoNode(t *testing.T) (*Task, *Task, *Task, *Task, *Task, *Task, *Task, *Task) {
+	/*
+		  a      b
+		/ | \ 	/ |
+	  c	  d   e   |
+		  |    \ /|
+		  f --> g |
+		         \|
+		          h
+	*/
+
 	a, _ := NewTask("a", mock{}, nil)
 	b, _ := NewTask("b", mock{}, nil)
 	c, _ := NewTask("c", mock{}, nil)
