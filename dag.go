@@ -16,7 +16,6 @@ type Actuator struct {
 	Config
 	ReadyTask   chan *Task
 	SuccessTask chan *Task
-	FailureTask chan *Task
 
 	retryLock sync.Mutex
 
@@ -51,7 +50,7 @@ func (a *Actuator) Close() {
 
 func (a *Actuator) run() {
 	defer a.wg.Done()
-	a.wg.Add(3)
+	a.wg.Add(2)
 	go func() {
 		defer a.wg.Done()
 		var dist sync.WaitGroup
@@ -70,10 +69,20 @@ func (a *Actuator) run() {
 					t.Call()
 					switch t.GetState() {
 					case StateFailure:
+						t.setStatue(StateRetry)
+						if a.Retry == nil {
+							fmt.Printf("retry is nil, stop! %#v \r\n", t)
+							return
+						}
+						if !a.Retry(a, t) {
+							fmt.Printf("retry is false, stop! %#v \r\n", t)
+							fmt.Printf("err: %#v \r\n", t.errors)
+							return
+						}
 						dist.Add(1)
 						go func() {
 							defer dist.Done()
-							a.FailureTask <- t
+							a.ReadyTask <- t
 						}()
 					case StateSuccess:
 						dist.Add(1)
@@ -89,24 +98,7 @@ func (a *Actuator) run() {
 		}
 
 		dist.Wait()
-		close(a.FailureTask)
 		close(a.SuccessTask)
-	}()
-
-	go func() {
-		defer a.wg.Done()
-		for t := range a.FailureTask {
-			t.setStatue(StateRetry)
-			if a.Retry == nil {
-				fmt.Printf("retry is nil, stop! %#v \r\n", t)
-				continue
-			}
-			if !a.Retry(a, t) {
-				fmt.Printf("retry is false, stop! %#v \r\n", t)
-				fmt.Printf("err: %#v \r\n", t.errors)
-				continue
-			}
-		}
 	}()
 
 	go func() {
@@ -134,7 +126,6 @@ func (a *Actuator) reset() {
 
 	a.ReadyTask = make(chan *Task, a.Config.ChannelBuffer)
 	a.SuccessTask = make(chan *Task, a.Config.ChannelBuffer)
-	a.FailureTask = make(chan *Task, a.Config.ChannelBuffer)
 	a.g = goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(a.Config.WorkerNum)))
 }
 
@@ -252,7 +243,6 @@ func NewActuator(options ...options.Option) *Actuator {
 				return false
 			}
 			task.AddExecCount()
-			a.ReadyTask <- task
 			return true
 		},
 		WorkerNum:     1000,
@@ -265,7 +255,6 @@ func NewActuator(options ...options.Option) *Actuator {
 	a := &Actuator{
 		ReadyTask:   make(chan *Task, c.ChannelBuffer),
 		SuccessTask: make(chan *Task, c.ChannelBuffer),
-		FailureTask: make(chan *Task, c.ChannelBuffer),
 		taskMap:     make(map[string]*Task),
 		Config:      *c,
 		g:           goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(c.WorkerNum))),
