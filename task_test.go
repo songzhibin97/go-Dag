@@ -4,13 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"math/rand"
 	"testing"
+	"time"
 )
 
 type mock struct {
 }
 
 func (mock) Call(t *Task) error {
+	time.Sleep(time.Second * time.Duration(rand.Intn(5)))
 	fmt.Println(t.id)
 	return nil
 }

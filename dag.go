@@ -3,9 +3,11 @@ package go_Dag
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/songzhibin97/gkit/goroutine"
 	"github.com/songzhibin97/gkit/options"
 	"sync"
+	"sync/atomic"
 )
 
 var ErrCircle = errors.New("circle graph")
@@ -23,124 +25,150 @@ type Actuator struct {
 
 	g goroutine.GGroup
 
-	wg   sync.WaitGroup
-	done int32
+	wg     sync.WaitGroup
+	done   int32
+	runner int64
 }
 
-//func (a *Actuator) Close() {
-//	if !atomic.CompareAndSwapInt32(&a.done, 0, 1) {
-//		return
-//	}
-//	close(a.ReadyTask)
-//	close(a.SuccessTask)
-//	close(a.FailureTask)
-//	_ = a.g.Shutdown()
-//}
-//
-//func (a *Actuator) run() {
-//	a.wg.Add(3)
-//	go func() {
-//		for t := range a.ReadyTask {
-//			func(t *Task) {
-//				a.wg.Add(1)
-//				a.g.AddTask(func() {
-//					defer a.wg.Done()
-//
-//					t.setStatue(StateStarted)
-//					t.Call()
-//					switch t.GetState() {
-//					case StateFailure:
-//						a.FailureTask <- t // 如果失败，则把任务放入失败队列
-//					case StateSuccess:
-//						go func() {
-//							a.SuccessTask <- t // 如果成功，则把任务放入成功队列
-//						}()
-//					default:
-//						fmt.Printf("unknow state %#v \r\n", t)
-//					}
-//				})
-//			}(t)
-//		}
-//		defer a.wg.Done()
-//	}()
-//
-//	go func() {
-//		for t := range a.FailureTask {
-//			t.setStatue(StateRetry)
-//			if a.Retry == nil {
-//				fmt.Printf("retry is nil, stop! %#v \r\n", t)
-//				continue
-//			}
-//			if !a.Retry(a, t) {
-//				fmt.Printf("retry is false, stop! %#v \r\n", t)
-//				fmt.Printf("err: %#v \r\n", t.errors)
-//				continue
-//			}
-//		}
-//		defer a.wg.Done()
-//	}()
-//
-//	go func() {
-//		for t := range a.SuccessTask {
-//			list := t.DelOutDegreeRelation()
-//			for _, task := range list {
-//				a.ReadyTask <- task
-//			}
-//		}
-//		defer a.wg.Done()
-//	}()
-//
-//}
-//
-//func (a *Actuator) reset() {
-//	if !atomic.CompareAndSwapInt32(&a.done, 1, 0) {
-//		return
-//	}
-//
-//	a.ReadyTask = make(chan *Task, a.Config.ChannelBuffer)
-//	a.SuccessTask = make(chan *Task, a.Config.ChannelBuffer)
-//	a.FailureTask = make(chan *Task, a.Config.ChannelBuffer)
-//	a.g = goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(a.Config.WorkerNum)))
-//}
-//
-//func (a *Actuator) Run() {
-//
-//	a.reset()
-//
-//	go a.run()
-//	a.wg.Add(1)
-//	go func() {
-//		defer a.wg.Done()
-//		for {
-//			a.taskLock.Lock()
-//			if len(a.taskMap) == 0 {
-//				//a.Close()
-//				a.taskLock.Unlock()
-//				break
-//			}
-//
-//			var clear []*Task
-//			for _, t := range a.taskMap {
-//				switch t.GetState() {
-//				case StateReceived:
-//					a.ReadyTask <- t
-//				case StateSuccess:
-//					clear = append(clear, t)
-//					delete(a.taskMap, t.GID())
-//				}
-//			}
-//			a.taskLock.Unlock()
-//
-//			if len(clear) != 0 {
-//				fmt.Printf("clear: %#v \r\n", clear)
-//			}
-//
-//			// TODO 任务推进有点问题
-//			//time.Sleep(time.Second)
-//		}
-//	}()
-//	a.wg.Wait()
-//}
+func (a *Actuator) addRunner() {
+	atomic.AddInt64(&a.runner, 1)
+}
+
+func (a *Actuator) subRunner() {
+	atomic.AddInt64(&a.runner, -1)
+}
+
+func (a *Actuator) getRunner() int64 {
+	return atomic.LoadInt64(&a.runner)
+}
+
+func (a *Actuator) Close() {
+	if !atomic.CompareAndSwapInt32(&a.done, 0, 1) {
+		return
+	}
+	close(a.ReadyTask)
+}
+
+func (a *Actuator) run() {
+	defer a.wg.Done()
+	a.wg.Add(3)
+	go func() {
+		defer a.wg.Done()
+		var dist sync.WaitGroup
+
+		for t := range a.ReadyTask {
+			func(t *Task) {
+				a.addRunner()
+				a.wg.Add(1)
+				dist.Add(1)
+				a.g.AddTask(func() {
+					defer a.wg.Done()
+					defer a.subRunner()
+					defer dist.Done()
+
+					t.setStatue(StateStarted)
+					t.Call()
+					switch t.GetState() {
+					case StateFailure:
+						dist.Add(1)
+						go func() {
+							defer dist.Done()
+							a.FailureTask <- t
+						}()
+					case StateSuccess:
+						dist.Add(1)
+						go func() {
+							defer dist.Done()
+							a.SuccessTask <- t
+						}()
+					default:
+						fmt.Printf("unknow state %#v \r\n", t)
+					}
+				})
+			}(t)
+		}
+
+		dist.Wait()
+		close(a.FailureTask)
+		close(a.SuccessTask)
+	}()
+
+	go func() {
+		defer a.wg.Done()
+		for t := range a.FailureTask {
+			t.setStatue(StateRetry)
+			if a.Retry == nil {
+				fmt.Printf("retry is nil, stop! %#v \r\n", t)
+				continue
+			}
+			if !a.Retry(a, t) {
+				fmt.Printf("retry is false, stop! %#v \r\n", t)
+				fmt.Printf("err: %#v \r\n", t.errors)
+				continue
+			}
+		}
+	}()
+
+	go func() {
+		defer a.wg.Done()
+		for t := range a.SuccessTask {
+
+			list := t.DelOutDegreeRelation()
+			if a.getRunner() == 0 && len(list) == 0 {
+				// close
+				a.Close()
+				return
+			}
+			for _, task := range list {
+				a.ReadyTask <- task
+			}
+		}
+	}()
+}
+
+func (a *Actuator) reset() {
+	for !atomic.CompareAndSwapInt32(&a.done, 1, 0) {
+		return
+	}
+	a.wg.Wait()
+
+	a.ReadyTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.SuccessTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.FailureTask = make(chan *Task, a.Config.ChannelBuffer)
+	a.g = goroutine.NewGoroutine(context.Background(), goroutine.SetMax(int64(a.Config.WorkerNum)))
+}
+
+func (a *Actuator) Run() {
+
+	a.reset()
+
+	a.wg.Add(1)
+	go a.run()
+
+	a.taskLock.Lock()
+	if len(a.taskMap) == 0 {
+		a.taskLock.Unlock()
+		return
+	}
+
+	var clear []*Task
+	for _, t := range a.taskMap {
+		switch t.GetState() {
+		case StateReceived:
+			a.ReadyTask <- t
+		case StateSuccess:
+			clear = append(clear, t)
+			delete(a.taskMap, t.GID())
+		}
+	}
+
+	a.taskLock.Unlock()
+
+	if len(clear) != 0 {
+		fmt.Printf("clear: %#v \r\n", clear)
+	}
+	a.wg.Wait()
+}
 
 type Config struct {
 	Retry         func(a *Actuator, task *Task) bool

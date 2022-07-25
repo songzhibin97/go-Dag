@@ -7,9 +7,9 @@ import (
 
 func demoNode(t *testing.T) (*Task, *Task, *Task, *Task, *Task, *Task, *Task, *Task) {
 	/*
-			  a      b
-			/ | \ 	/ |
-		  c	  d   e   |
+			  a     b
+			/ | \ / |
+		   c  d  e   |
 			  |    \ /|
 			  f --> g |
 			         \|
@@ -47,6 +47,8 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -55,6 +57,8 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -63,6 +67,8 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -71,6 +77,8 @@ func TestAddTask(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -80,6 +88,8 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -89,6 +99,8 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -98,6 +110,8 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -107,6 +121,8 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 
 	a, b, c, d, e, f, g, h = demoNode(t)
 
@@ -117,4 +133,6 @@ func TestAddTask(t *testing.T) {
 	assert.Equal(t, 2, len(actuator.taskMap))
 	assert.Equal(t, a, actuator.taskMap[a.GID()])
 	assert.Equal(t, b, actuator.taskMap[b.GID()])
+	actuator.Run()
+	t.Log("\r\n")
 }
