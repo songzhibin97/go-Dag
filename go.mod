@@ -1,4 +1,4 @@
-module Songzhibin/go-Dag
+module github.com/songzhibin97/go-Dag
 
 go 1.18
 
